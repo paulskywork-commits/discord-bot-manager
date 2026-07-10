@@ -21,12 +21,14 @@
     }
   },
   "status": {
-    "used": false,
-    "used_at_utc": null,
-    "used_at_berlin": null,
+    "used": true,
+    "used_at_utc": "2026-07-10T16:01:12.822Z",
+    "used_at_berlin": "2026-07-10T18:01:12",
     "revoked": false,
     "revoked_at_utc": null,
-    "revoked_at_berlin": null
+    "revoked_at_berlin": null,
+    "used_by_workflow_mode": "test",
+    "used_note": "Authorization was consumed by Restore Execute safety gate. No real Discord restore was executed in test mode."
   },
   "verification": {
     "code_a": {
