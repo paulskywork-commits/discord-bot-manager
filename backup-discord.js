@@ -7,6 +7,7 @@ const LOG_WEBHOOK_URL = process.env.LOG_WEBHOOK_URL || "";
 
 const API_BASE = "https://discord.com/api/v10";
 const BACKUP_DIR = "backups";
+const BACKUP_RETENTION_COUNT = 90;
 
 if (!DISCORD_BOT_TOKEN) {
   throw new Error("DISCORD_BOT_TOKEN fehlt. Bitte als GitHub Repository Secret anlegen.");
@@ -28,13 +29,16 @@ function berlinTimestamp() {
   }).format(new Date()).replace(" ", "T");
 }
 
-function backupDateName() {
+function backupFileTimestamp() {
   return new Intl.DateTimeFormat("sv-SE", {
     timeZone: "Europe/Berlin",
     year: "numeric",
     month: "2-digit",
-    day: "2-digit"
-  }).format(new Date());
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit"
+  }).format(new Date()).replace(" ", "-").replace(/:/g, "-");
 }
 
 async function discordFetch(endpoint, options = {}) {
@@ -120,6 +124,33 @@ function simplifyBan(ban) {
   };
 }
 
+function getDatedBackupFiles() {
+  if (!fs.existsSync(BACKUP_DIR)) {
+    return [];
+  }
+
+  return fs.readdirSync(BACKUP_DIR)
+    .filter(file => /^server-structure-\d{4}-\d{2}-\d{2}-\d{2}-\d{2}-\d{2}\.json$/.test(file))
+    .sort();
+}
+
+function cleanupOldBackups() {
+  const backupFiles = getDatedBackupFiles();
+  const deleteCount = Math.max(0, backupFiles.length - BACKUP_RETENTION_COUNT);
+  const filesToDelete = backupFiles.slice(0, deleteCount);
+
+  for (const file of filesToDelete) {
+    fs.unlinkSync(path.join(BACKUP_DIR, file));
+  }
+
+  const remainingFiles = getDatedBackupFiles();
+
+  return {
+    deletedFiles: filesToDelete,
+    remainingBackupCount: remainingFiles.length
+  };
+}
+
 async function fetchAllBans() {
   const allBans = [];
   let after = null;
@@ -158,12 +189,13 @@ async function createBackup() {
   const categories = channels.filter(channel => channel.type === 4);
   const bans = bansRaw.map(simplifyBan);
 
-  const backup = {
+  return {
     metadata: {
       created_at_utc: new Date().toISOString(),
       created_at_berlin: berlinTimestamp(),
       source: "GitHub Actions / Bot Manager",
-      backup_version: 1
+      backup_version: 1,
+      retention_count: BACKUP_RETENTION_COUNT
     },
     guild: {
       id: guild.id,
@@ -198,15 +230,13 @@ async function createBackup() {
     channels,
     bans
   };
-
-  return backup;
 }
 
 function writeBackupFiles(backup) {
   fs.mkdirSync(BACKUP_DIR, { recursive: true });
 
-  const date = backupDateName();
-  const datedPath = path.join(BACKUP_DIR, `server-structure-${date}.json`);
+  const timestamp = backupFileTimestamp();
+  const datedPath = path.join(BACKUP_DIR, `server-structure-${timestamp}.json`);
   const latestPath = path.join(BACKUP_DIR, "latest.json");
 
   const jsonText = JSON.stringify(backup, null, 2) + "\n";
@@ -214,10 +244,29 @@ function writeBackupFiles(backup) {
   fs.writeFileSync(datedPath, jsonText, "utf8");
   fs.writeFileSync(latestPath, jsonText, "utf8");
 
-  return { datedPath, latestPath };
+  const cleanup = cleanupOldBackups();
+
+  return {
+    datedPath,
+    latestPath,
+    deletedFiles: cleanup.deletedFiles,
+    remainingBackupCount: cleanup.remainingBackupCount
+  };
 }
 
-async function sendLog(backup, status, errorMessage = "") {
+function createCleanupMessage(files) {
+  if (!files.deletedFiles.length) {
+    return "No old backup deleted.";
+  }
+
+  if (files.deletedFiles.length === 1) {
+    return `Deleted oldest backup: ${files.deletedFiles[0]}`;
+  }
+
+  return `Deleted ${files.deletedFiles.length} old backups. Oldest deleted: ${files.deletedFiles[0]}`;
+}
+
+async function sendLog(backup, status, errorMessage = "", files = null) {
   if (!LOG_WEBHOOK_URL) {
     console.log("No LOG_WEBHOOK_URL set. Skipping Discord log.");
     return;
@@ -235,8 +284,16 @@ async function sendLog(backup, status, errorMessage = "") {
 
   const isSuccess = status === "success";
 
+  const backupCountText = files
+    ? `${files.remainingBackupCount} / ${BACKUP_RETENTION_COUNT}`
+    : `unknown / ${BACKUP_RETENTION_COUNT}`;
+
+  const cleanupText = files
+    ? createCleanupMessage(files)
+    : "Cleanup status unknown.";
+
   const content = isSuccess
-    ? `✅ **Discord Structure Backup completed**\n\nServer: ${backup.guild.name}\nRoles: ${backup.counts.roles}\nChannels: ${backup.counts.channels}\nCategories: ${backup.counts.categories}\nBans: ${backup.counts.bans}\n\nTime: ${berlinTime} Europe/Berlin`
+    ? `✅ **Discord Structure Backup completed**\n\nServer: ${backup.guild.name}\nRoles: ${backup.counts.roles}\nChannels: ${backup.counts.channels}\nCategories: ${backup.counts.categories}\nBans: ${backup.counts.bans}\n\nStored backups: ${backupCountText}\nCleanup: ${cleanupText}\n\nTime: ${berlinTime} Europe/Berlin`
     : `❌ **Discord Structure Backup failed**\n\n${errorMessage || "Unknown error"}\n\nTime: ${berlinTime} Europe/Berlin`;
 
   const payload = {
@@ -270,12 +327,14 @@ async function main() {
 
     console.log(`Backup written: ${files.datedPath}`);
     console.log(`Latest backup written: ${files.latestPath}`);
+    console.log(`Stored backup files: ${files.remainingBackupCount} / ${BACKUP_RETENTION_COUNT}`);
+    console.log(`Deleted old backup files: ${files.deletedFiles.length}`);
     console.log(`Roles: ${backup.counts.roles}`);
     console.log(`Channels: ${backup.counts.channels}`);
     console.log(`Categories: ${backup.counts.categories}`);
     console.log(`Bans: ${backup.counts.bans}`);
 
-    await sendLog(backup, "success");
+    await sendLog(backup, "success", "", files);
   } catch (error) {
     console.error(error);
 
