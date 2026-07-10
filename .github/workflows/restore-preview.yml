@@ -1,0 +1,64 @@
+name: Restore Preview
+
+on:
+  workflow_dispatch:
+    inputs:
+      backup_file:
+        description: "Backup file path, for example backups/latest.json"
+        required: true
+        default: "backups/latest.json"
+        type: string
+      password:
+        description: "Bot Manager action password"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: restore-preview
+  cancel-in-progress: false
+
+jobs:
+  restore-preview:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Verify password
+        run: |
+          if [ "${{ inputs.password }}" != "${{ secrets.BOT_MANAGER_ACTION_PASSWORD }}" ]; then
+            echo "Wrong password."
+            exit 1
+          fi
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Sync latest repository state
+        run: |
+          git pull --ff-only origin main
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Run restore preview
+        run: node restore-preview.js
+        env:
+          DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
+          DISCORD_GUILD_ID: ${{ secrets.DISCORD_GUILD_ID }}
+          LOG_WEBHOOK_URL: ${{ secrets.LOG_WEBHOOK_URL }}
+          BACKUP_FILE: ${{ inputs.backup_file }}
+
+      - name: Commit restore preview report
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add reports/
+          git diff --cached --quiet || git commit -m "Add restore preview report"
+          git push origin main
