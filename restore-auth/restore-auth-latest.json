@@ -24,11 +24,13 @@
     "used": true,
     "used_at_utc": "2026-07-10T16:01:12.822Z",
     "used_at_berlin": "2026-07-10T18:01:12",
-    "revoked": false,
-    "revoked_at_utc": null,
-    "revoked_at_berlin": null,
+    "revoked": true,
+    "revoked_at_utc": "2026-07-10T16:14:23.120Z",
+    "revoked_at_berlin": "2026-07-10T18:14:23",
     "used_by_workflow_mode": "test",
-    "used_note": "Authorization was consumed by Restore Execute safety gate. No real Discord restore was executed in test mode."
+    "used_note": "Authorization was consumed by Restore Execute safety gate. No real Discord restore was executed in test mode.",
+    "revoke_reason": "Manual revoke from GitHub Actions",
+    "revoked_note": "Authorization was revoked. Restore Execute must reject this authorization."
   },
   "verification": {
     "code_a": {
@@ -54,6 +56,7 @@
     "restore_execute_must_check_expiry": true,
     "restore_execute_must_check_used_status": true,
     "restore_execute_must_mark_auth_as_used_before_changes": true,
-    "rerun_should_fail_after_auth_is_used": true
+    "rerun_should_fail_after_auth_is_used": true,
+    "restore_execute_must_check_revoked_status": true
   }
 }
