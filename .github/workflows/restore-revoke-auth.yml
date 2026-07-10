@@ -1,0 +1,87 @@
+name: Restore Auth Revoke
+
+on:
+  workflow_dispatch:
+    inputs:
+      auth_file:
+        description: "Authorization file path, for example restore-auth/restore-auth-latest.json"
+        required: true
+        default: "restore-auth/restore-auth-latest.json"
+        type: string
+      mode:
+        description: "Test only or revoke authorization?"
+        required: true
+        default: "test"
+        type: choice
+        options:
+          - test
+          - normal
+      revoke_reason:
+        description: "Reason for revoking this authorization"
+        required: true
+        default: "Manual revoke from GitHub Actions"
+        type: string
+      password:
+        description: "Bot Manager action password"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: restore-auth-revoke
+  cancel-in-progress: false
+
+jobs:
+  restore-auth-revoke:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Mask sensitive inputs
+        env:
+          INPUT_PASSWORD: ${{ inputs.password }}
+        run: |
+          echo "::add-mask::$INPUT_PASSWORD"
+
+      - name: Verify password
+        env:
+          INPUT_PASSWORD: ${{ inputs.password }}
+          ACTION_PASSWORD: ${{ secrets.BOT_MANAGER_ACTION_PASSWORD }}
+        run: |
+          if [ "$INPUT_PASSWORD" != "$ACTION_PASSWORD" ]; then
+            echo "Wrong password."
+            exit 1
+          fi
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Sync latest repository state
+        run: |
+          git pull --ff-only origin main
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Run restore auth revoke
+        run: node restore-revoke-auth.js
+        env:
+          MODE: ${{ inputs.mode }}
+          LOG_WEBHOOK_URL: ${{ secrets.LOG_WEBHOOK_URL }}
+          AUTH_FILE: ${{ inputs.auth_file }}
+          REVOKE_REASON: ${{ inputs.revoke_reason }}
+
+      - name: Commit revoked authorization state
+        if: ${{ inputs.mode == 'normal' }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add restore-auth/
+          git diff --cached --quiet || git commit -m "Revoke restore authorization"
+          git push origin main
