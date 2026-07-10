@@ -195,6 +195,10 @@ function createAuthorization(plan) {
     },
     safety_rules: {
       plaintext_codes_are_not_saved: true,
+      code_a_alone_cannot_execute_restore: true,
+      code_b_alone_cannot_execute_restore: true,
+      restore_execute_requires_bot_manager_action_password: true,
+      restore_execute_requires_restore_master_password: true,
       restore_execute_must_check_expiry: true,
       restore_execute_must_check_used_status: true,
       restore_execute_must_mark_auth_as_used_before_changes: true,
@@ -259,7 +263,7 @@ async function runNormalMode() {
     `\`${authorization.authId}\`\n\n` +
     `Expires:\n` +
     `${berlinTimestamp(authorization.expiresAt)} Europe/Berlin\n\n` +
-    `This code alone cannot execute a restore. Code B and the restore password are also required.`;
+    `This code alone cannot execute a restore. Code B, the Bot Manager action password, and the Restore Master Password are also required.`;
 
   const adminMessage =
     `🔐 **Restore Authorization Code B**\n\n` +
@@ -279,6 +283,7 @@ async function runNormalMode() {
     `${files.latestPath}\n\n` +
     `Expires:\n` +
     `${berlinTimestamp(authorization.expiresAt)} Europe/Berlin\n\n` +
+    `This code alone cannot execute a restore. Code A, the Bot Manager action password, and the Restore Master Password are also required.\n\n` +
     `No Discord restore was executed.`;
 
   await sendDiscordDm(RESTORE_DM_USER_ID, dmMessage);
