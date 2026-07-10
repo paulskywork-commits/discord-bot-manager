@@ -1,0 +1,122 @@
+name: Restore Plan
+
+on:
+  workflow_dispatch:
+    inputs:
+      restore_preview_file:
+        description: "Restore preview report path, for example reports/restore-preview-latest.json"
+        required: true
+        default: "reports/restore-preview-latest.json"
+        type: string
+      mode:
+        description: "Test only or create real plan file?"
+        required: true
+        default: "test"
+        type: choice
+        options:
+          - test
+          - normal
+      password:
+        description: "Bot Manager action password"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: restore-plan
+  cancel-in-progress: false
+
+jobs:
+  restore-plan:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Verify password
+        run: |
+          if [ "${{ inputs.password }}" != "${{ secrets.BOT_MANAGER_ACTION_PASSWORD }}" ]; then
+            echo "Wrong password."
+            exit 1
+          fi
+
+      - name: Send test log
+        if: ${{ inputs.mode == 'test' }}
+        run: |
+          node - <<'NODE'
+          const url = process.env.LOG_WEBHOOK_URL;
+
+          if (!url) {
+            console.log("No LOG_WEBHOOK_URL set. Skipping test log.");
+            process.exit(0);
+          }
+
+          const berlinTime = new Intl.DateTimeFormat("en-GB", {
+            timeZone: "Europe/Berlin",
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit",
+            hour: "2-digit",
+            minute: "2-digit",
+            second: "2-digit"
+          }).format(new Date());
+
+          const payload = {
+            username: "Bot Manager Log",
+            content: `🧪 **Restore Plan TEST completed**\n\nPassword check passed.\nNo Discord changes were made.\nNo plan file was created.\nNo GitHub files were changed.\n\nPreview file selected: ${process.env.RESTORE_PREVIEW_FILE}\n\nTime: ${berlinTime} Europe/Berlin`,
+            allowed_mentions: {
+              parse: []
+            }
+          };
+
+          const response = await fetch(url, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify(payload)
+          });
+
+          if (!response.ok) {
+            throw new Error(`Log Webhook Error: ${response.status} ${await response.text()}`);
+          }
+
+          console.log("Test log sent.");
+          NODE
+        env:
+          LOG_WEBHOOK_URL: ${{ secrets.LOG_WEBHOOK_URL }}
+          RESTORE_PREVIEW_FILE: ${{ inputs.restore_preview_file }}
+
+      - name: Checkout repository
+        if: ${{ inputs.mode == 'normal' }}
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Sync latest repository state
+        if: ${{ inputs.mode == 'normal' }}
+        run: |
+          git pull --ff-only origin main
+
+      - name: Setup Node.js
+        if: ${{ inputs.mode == 'normal' }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Create restore plan
+        if: ${{ inputs.mode == 'normal' }}
+        run: node restore-plan.js
+        env:
+          LOG_WEBHOOK_URL: ${{ secrets.LOG_WEBHOOK_URL }}
+          RESTORE_PREVIEW_FILE: ${{ inputs.restore_preview_file }}
+
+      - name: Commit restore plan
+        if: ${{ inputs.mode == 'normal' }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add plans/
+          git diff --cached --quiet || git commit -m "Add restore plan"
+          git push origin main
