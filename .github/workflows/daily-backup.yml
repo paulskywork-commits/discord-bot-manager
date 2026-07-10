@@ -1,0 +1,48 @@
+name: Daily Discord Structure Backup
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "23 2 * * *"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: discord-structure-backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Sync latest repository state
+        run: |
+          git pull --ff-only origin main
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Create Discord structure backup
+        run: node backup-discord.js
+        env:
+          DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
+          DISCORD_GUILD_ID: ${{ secrets.DISCORD_GUILD_ID }}
+          LOG_WEBHOOK_URL: ${{ secrets.LOG_WEBHOOK_URL }}
+
+      - name: Commit backup files
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add backups/
+          git diff --cached --quiet || git commit -m "Update Discord structure backup"
+          git push origin main
