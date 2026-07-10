@@ -11,6 +11,9 @@ const CODE_A = process.env.CODE_A || "";
 const CODE_B = process.env.CODE_B || "";
 const CONFIRM_TEXT = process.env.CONFIRM_TEXT || "";
 
+const MASTER_PASSWORD = process.env.MASTER_PASSWORD || "";
+const RESTORE_MASTER_PASSWORD = process.env.RESTORE_MASTER_PASSWORD || "";
+
 const EXPECTED_CONFIRM_TEXT = process.env.EXPECTED_CONFIRM_TEXT || "RESTORE_EXECUTE_TEST";
 
 function berlinTimestamp(date = new Date()) {
@@ -50,6 +53,17 @@ function safeEqualHex(a, b) {
   return crypto.timingSafeEqual(bufferA, bufferB);
 }
 
+function safeEqualText(a, b) {
+  const bufferA = Buffer.from(a || "", "utf8");
+  const bufferB = Buffer.from(b || "", "utf8");
+
+  if (bufferA.length !== bufferB.length) {
+    return false;
+  }
+
+  return crypto.timingSafeEqual(bufferA, bufferB);
+}
+
 function readAuthFile() {
   if (!fs.existsSync(AUTH_FILE)) {
     throw new Error(`Authorization file not found: ${AUTH_FILE}`);
@@ -73,6 +87,15 @@ function writeAuthFile(authData) {
 function verifyConfirmText() {
   if (CONFIRM_TEXT !== EXPECTED_CONFIRM_TEXT) {
     throw new Error(`Wrong confirm text. Expected: ${EXPECTED_CONFIRM_TEXT}`);
+  }
+}
+
+function verifyMasterPassword() {
+  requireValue(MASTER_PASSWORD, "MASTER_PASSWORD");
+  requireValue(RESTORE_MASTER_PASSWORD, "RESTORE_MASTER_PASSWORD");
+
+  if (!safeEqualText(MASTER_PASSWORD, RESTORE_MASTER_PASSWORD)) {
+    throw new Error("Master password is wrong.");
   }
 }
 
@@ -176,6 +199,7 @@ async function runTestMode() {
   requireValue(CONFIRM_TEXT, "CONFIRM_TEXT");
 
   verifyConfirmText();
+  verifyMasterPassword();
 
   const authData = readAuthFile();
 
@@ -192,7 +216,7 @@ async function runTestMode() {
   await sendWebhook(
     `✅ **Restore Execute SAFETY TEST passed**\n\n` +
     `No Discord changes were made.\nNo real restore was executed.\n\n` +
-    `Password check passed.\nConfirm text passed.\nCode A passed.\nCode B passed.\nAuthorization expiry check passed.\nAuthorization used-status check passed.\n\n` +
+    `Password check passed.\nMaster password passed.\nConfirm text passed.\nCode A passed.\nCode B passed.\nAuthorization expiry check passed.\nAuthorization used-status check passed.\n\n` +
     `Authorization was marked as used to block re-runs.\n\n` +
     `Auth ID: ${authId}\n` +
     `Auth file: ${AUTH_FILE}\n` +
