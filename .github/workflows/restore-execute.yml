@@ -1,0 +1,99 @@
+name: Restore Execute
+
+on:
+  workflow_dispatch:
+    inputs:
+      auth_file:
+        description: "Authorization file path, for example restore-auth/restore-auth-latest.json"
+        required: true
+        default: "restore-auth/restore-auth-latest.json"
+        type: string
+      mode:
+        description: "Only safety test is currently allowed"
+        required: true
+        default: "test"
+        type: choice
+        options:
+          - test
+      code_a:
+        description: "Code A from Discord DM"
+        required: true
+        type: string
+      code_b:
+        description: "Code B from admin/log channel"
+        required: true
+        type: string
+      confirm_text:
+        description: "Type RESTORE_EXECUTE_TEST"
+        required: true
+        type: string
+      password:
+        description: "Bot Manager action password"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: restore-execute
+  cancel-in-progress: false
+
+jobs:
+  restore-execute:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Mask sensitive inputs
+        env:
+          INPUT_PASSWORD: ${{ inputs.password }}
+          CODE_A: ${{ inputs.code_a }}
+          CODE_B: ${{ inputs.code_b }}
+        run: |
+          echo "::add-mask::$INPUT_PASSWORD"
+          echo "::add-mask::$CODE_A"
+          echo "::add-mask::$CODE_B"
+
+      - name: Verify password
+        env:
+          INPUT_PASSWORD: ${{ inputs.password }}
+          ACTION_PASSWORD: ${{ secrets.BOT_MANAGER_ACTION_PASSWORD }}
+        run: |
+          if [ "$INPUT_PASSWORD" != "$ACTION_PASSWORD" ]; then
+            echo "Wrong password."
+            exit 1
+          fi
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Sync latest repository state
+        run: |
+          git pull --ff-only origin main
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Run restore execute safety test
+        run: node restore-execute.js
+        env:
+          MODE: ${{ inputs.mode }}
+          LOG_WEBHOOK_URL: ${{ secrets.LOG_WEBHOOK_URL }}
+          AUTH_FILE: ${{ inputs.auth_file }}
+          CODE_A: ${{ inputs.code_a }}
+          CODE_B: ${{ inputs.code_b }}
+          CONFIRM_TEXT: ${{ inputs.confirm_text }}
+          EXPECTED_CONFIRM_TEXT: "RESTORE_EXECUTE_TEST"
+
+      - name: Commit used authorization state
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add restore-auth/
+          git diff --cached --quiet || git commit -m "Mark restore authorization as used"
+          git push origin main
