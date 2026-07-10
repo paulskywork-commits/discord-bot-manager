@@ -1,0 +1,53 @@
+{
+  "metadata": {
+    "auth_id": "restore-auth-2026-07-10-17-29-51-f3e515d1",
+    "created_at_utc": "2026-07-10T15:29:51.740Z",
+    "created_at_berlin": "2026-07-10T17:29:51",
+    "expires_at_utc": "2026-07-10T15:39:51.740Z",
+    "expires_at_berlin": "2026-07-10T17:39:51",
+    "ttl_minutes": 10,
+    "mode": "restore-authorization-only",
+    "warning": "No Discord restore was executed. This file only stores hashed authorization codes."
+  },
+  "source": {
+    "restore_plan_file": "latest.json",
+    "plan_summary": {
+      "actions_total": 0,
+      "create_missing_roles": 0,
+      "create_missing_channels": 0,
+      "restore_missing_bans": 0,
+      "review_changed_roles": 0,
+      "review_changed_channels": 0
+    }
+  },
+  "status": {
+    "used": false,
+    "used_at_utc": null,
+    "used_at_berlin": null,
+    "revoked": false,
+    "revoked_at_utc": null,
+    "revoked_at_berlin": null
+  },
+  "verification": {
+    "code_a": {
+      "delivery": "discord_dm",
+      "recipient_user_id": "825389949326721055",
+      "hash_algorithm": "sha256",
+      "salt": "18e3e18753d15af4bff83a3ad478a516604d3e57f3207033349ecb85d2dd0b92",
+      "hash": "b23b7fa41bdd9a1b146bf2dcaeec74dfbde11f80aec425b6b88e37b75171eb7e"
+    },
+    "code_b": {
+      "delivery": "admin_log_channel",
+      "hash_algorithm": "sha256",
+      "salt": "8db4f004a6498e043b7f1121661b08bb4468732575f00750a4ad5fe251fcc231",
+      "hash": "ac52cdcc958b2ce16bc1ee08c5060d687bb7f2b786b82ad4220ec20d8c456a75"
+    }
+  },
+  "safety_rules": {
+    "plaintext_codes_are_not_saved": true,
+    "restore_execute_must_check_expiry": true,
+    "restore_execute_must_check_used_status": true,
+    "restore_execute_must_mark_auth_as_used_before_changes": true,
+    "rerun_should_fail_after_auth_is_used": true
+  }
+}
