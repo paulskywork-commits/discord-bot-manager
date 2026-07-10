@@ -1,0 +1,34 @@
+{
+  "metadata": {
+    "created_at_utc": "2026-07-10T15:13:32.257Z",
+    "created_at_berlin": "2026-07-10T17:13:32",
+    "mode": "restore-plan-only",
+    "warning": "No Discord changes were made. This is only a plan generated from the Restore Preview report.",
+    "source_preview_file": "latest.json"
+  },
+  "summary": {
+    "actions_total": 0,
+    "create_missing_roles": 0,
+    "create_missing_channels": 0,
+    "restore_missing_bans": 0,
+    "review_changed_roles": 0,
+    "review_changed_channels": 0,
+    "extra_roles_not_planned_for_delete": 0,
+    "extra_channels_not_planned_for_delete": 0,
+    "extra_bans_not_planned_for_unban": 0
+  },
+  "safety_rules": {
+    "deletes_are_not_planned": true,
+    "extra_roles_are_not_deleted": true,
+    "extra_channels_are_not_deleted": true,
+    "extra_bans_are_not_removed": true,
+    "changed_items_require_review_first": true,
+    "real_restore_requires_separate_authorization": true
+  },
+  "planned_actions": [],
+  "not_planned": {
+    "extra_roles": [],
+    "extra_channels": [],
+    "extra_bans": []
+  }
+}
