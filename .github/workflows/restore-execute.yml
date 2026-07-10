@@ -23,6 +23,10 @@ on:
         description: "Code B from admin/log channel"
         required: true
         type: string
+      master_password:
+        description: "Restore master password from your password manager"
+        required: true
+        type: string
       confirm_text:
         description: "Type RESTORE_EXECUTE_TEST"
         required: true
@@ -49,10 +53,12 @@ jobs:
           INPUT_PASSWORD: ${{ inputs.password }}
           CODE_A: ${{ inputs.code_a }}
           CODE_B: ${{ inputs.code_b }}
+          MASTER_PASSWORD: ${{ inputs.master_password }}
         run: |
           echo "::add-mask::$INPUT_PASSWORD"
           echo "::add-mask::$CODE_A"
           echo "::add-mask::$CODE_B"
+          echo "::add-mask::$MASTER_PASSWORD"
 
       - name: Verify password
         env:
@@ -87,6 +93,8 @@ jobs:
           AUTH_FILE: ${{ inputs.auth_file }}
           CODE_A: ${{ inputs.code_a }}
           CODE_B: ${{ inputs.code_b }}
+          MASTER_PASSWORD: ${{ inputs.master_password }}
+          RESTORE_MASTER_PASSWORD: ${{ secrets.RESTORE_MASTER_PASSWORD }}
           CONFIRM_TEXT: ${{ inputs.confirm_text }}
           EXPECTED_CONFIRM_TEXT: "RESTORE_EXECUTE_TEST"
 
